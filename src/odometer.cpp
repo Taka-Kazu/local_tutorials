@@ -17,22 +17,21 @@ Dead_rec::Dead_rec(ros::NodeHandle n,ros::NodeHandle priv_nh):
 
 void
 Dead_rec::syncMsgsCB(const nav_msgs::OdometryConstPtr &odom, const sensor_msgs::ImuConstPtr &imu){
-	double odom_vel,dyaw,dt;
+	double odom_vel_x,odom_vel_y,dyaw,dt;
 	geometry_msgs::Quaternion odom_quat;
 
-	odom_vel = odom->twist.twist.linear.x;
+	odom_vel_x = odom->twist.twist.linear.x;
+	odom_vel_y = odom->twist.twist.linear.y;
  	dyaw = imu->angular_velocity.z;
 	dt = dt_calc(imu->header.stamp);
 
-	double dist = odom_vel * dt; 
-	
-	yaw += dyaw * dt; 
+	yaw += dyaw * dt;
 
 	while(yaw > M_PI) yaw -= 2*M_PI;
 	while(yaw < -M_PI) yaw += 2*M_PI;
 
-	x += dist * cos(yaw);// * cos(pitch);
-	y += dist * sin(yaw);// * cos(pitch);
+	x += odom_vel_x * dt * cos(yaw) - odom_vel_y * dt * sin(yaw);
+	y += odom_vel_x * dt * sin(yaw) + odom_vel_y * dt * cos(yaw);
 	odom_quat = tf::createQuaternionMsgFromYaw(yaw);
 
 	pub(imu->header.stamp,odom_quat);
@@ -40,10 +39,10 @@ Dead_rec::syncMsgsCB(const nav_msgs::OdometryConstPtr &odom, const sensor_msgs::
 
 double
 Dead_rec::dt_calc(ros::Time current_time){
-	
-	if(flag){ 
+
+	if(flag){
 		last_time = current_time;
-		flag = false;		
+		flag = false;
 	}
 
 	double last_accurate,current_accurate;
